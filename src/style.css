@@ -145,35 +145,58 @@ body {
 .frame-dial {
   position: absolute;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.7);
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(120, 138, 170, 0.4) 55%, rgba(0, 0, 0, 0.6) 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.frame-dial::before,
+.frame-dial::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+
+.frame-dial::before {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95), rgba(120, 138, 170, 0.25) 60%, rgba(0, 0, 0, 0.65));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .frame-dial::after {
-  content: '';
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  animation: ripple 2.8s infinite;
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  70% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
 }
 
 .start-hint {
   position: absolute;
-  padding: 10px 36px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(2, 6, 23, 0.65);
   color: rgba(248, 250, 252, 0.9);
-  letter-spacing: 0.08em;
-  font-size: 13px;
-  text-transform: uppercase;
   pointer-events: none;
   z-index: 2;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 24px;
+  letter-spacing: 0.12em;
 }
 
 .lobby-footer nav {

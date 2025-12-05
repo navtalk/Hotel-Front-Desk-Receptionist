@@ -134,6 +134,8 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
   const isConnecting = computed(() => sessionStatus.value === 'connecting')
 
   const assistantSegments = new Map<string, string>()
+  const functionCallBuffers = new Map<string, string>()
+  const AUTO_HANGUP_DELAY = 5000
   let realtimeSocket: WebSocket | null = null
   let signalingSocket: WebSocket | null = null
   let peerConnection: RTCPeerConnection | null = null
@@ -145,6 +147,8 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
   let hasHydratedIceServers = false
   let iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }]
   let pendingUserMessageId: string | null = null
+  let pendingHangupReason: string | null = null
+  let hangupTimer: ReturnType<typeof setTimeout> | null = null
 
   watch(
     chatMessages,
@@ -364,6 +368,24 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
         input_audio_transcription: {
           model: 'whisper-1',
         },
+        tools: [
+          {
+            type: 'function',
+            name: 'end_conversation',
+            description:
+              'Call this when the guest says goodbye, wants to leave, or asks to end the conversation so the kiosk can hang up automatically.',
+            parameters: {
+              type: 'object',
+              properties: {
+                reason: {
+                  type: 'string',
+                  description: 'Brief explanation of why the call should end.',
+                },
+              },
+              required: ['reason'],
+            },
+          },
+        ],
       },
     }
     realtimeSocket.send(JSON.stringify(payload))
@@ -470,7 +492,13 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
     targetSessionId = null
     hasHydratedIceServers = false
     assistantSegments.clear()
+    functionCallBuffers.clear()
     pendingUserMessageId = null
+    pendingHangupReason = null
+    if (hangupTimer) {
+      clearTimeout(hangupTimer)
+      hangupTimer = null
+    }
     userSpeaking.value = false
     assistantThinking.value = false
     if (reason) {
@@ -552,11 +580,18 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
               finalizeAssistantResponse(data.response_id)
               break
             case 'response.completed':
+              assistantThinking.value = false
+              attemptAutoHangup()
+              break
             case 'response.audio.done':
               assistantThinking.value = false
+              attemptAutoHangup()
+              break
+            case 'response.function_call_arguments.delta':
+              handleFunctionCallDelta(data)
               break
             case 'response.function_call_arguments.done':
-              console.info('Function call arguments received', data)
+              handleFunctionCallDone(data)
               break
             case 'error':
             case 'response.error':
@@ -625,6 +660,103 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
   function clearHistory() {
     chatMessages.value = []
     saveHistory([])
+  }
+
+  function handleFunctionCallDelta(event: any) {
+    if (!event?.call_id || typeof event.delta !== 'string') {
+      return
+    }
+    const callId = String(event.call_id)
+    functionCallBuffers.set(callId, `${functionCallBuffers.get(callId) ?? ''}${event.delta}`)
+  }
+
+  function handleFunctionCallDone(event: any) {
+    const name = typeof event?.name === 'string' ? event.name : ''
+    const callId = event?.call_id ? String(event.call_id) : undefined
+
+    let rawArguments: string | undefined
+    if (typeof event?.arguments === 'string' && event.arguments.trim()) {
+      rawArguments = event.arguments
+    } else if (callId && functionCallBuffers.has(callId)) {
+      rawArguments = functionCallBuffers.get(callId)
+    }
+    if (callId) {
+      functionCallBuffers.delete(callId)
+    }
+
+    let parsedArgs: Record<string, unknown> = {}
+    if (rawArguments) {
+      try {
+        parsedArgs = JSON.parse(rawArguments)
+      } catch (err) {
+        console.error('Failed to parse function call arguments', err)
+      }
+    }
+
+    if (!name) {
+      if (callId) {
+        sendFunctionCallResult(callId, { status: 'ignored', reason: 'Function name missing.' })
+      }
+      return
+    }
+
+    handleFunctionCallRequest(name, parsedArgs, callId)
+  }
+
+  function handleFunctionCallRequest(name: string, args: Record<string, unknown>, callId?: string) {
+    switch (name) {
+      case 'end_conversation':
+        scheduleAutoHangup(args, callId)
+        break
+      default:
+        if (callId) {
+          sendFunctionCallResult(callId, { status: 'ignored', reason: `Unhandled function: ${name}` })
+        }
+    }
+  }
+
+  function scheduleAutoHangup(args: Record<string, unknown>, callId?: string) {
+    const reasonInput = typeof args?.reason === 'string' ? args.reason.trim() : ''
+    const reason = reasonInput || 'Guest requested to end the conversation.'
+    pendingHangupReason = reason
+    if (hangupTimer) {
+      clearTimeout(hangupTimer)
+      hangupTimer = null
+    }
+    if (callId) {
+      sendFunctionCallResult(callId, { action: 'end_conversation', status: 'acknowledged', reason })
+    }
+  }
+
+  function sendFunctionCallResult(callId: string, output: unknown) {
+    if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
+      return
+    }
+    const payload = {
+      type: 'conversation.item.create',
+      item: {
+        type: 'function_call_output',
+        call_id: callId,
+        output: typeof output === 'string' ? output : JSON.stringify(output),
+      },
+    }
+    realtimeSocket.send(JSON.stringify(payload))
+    realtimeSocket.send(JSON.stringify({ type: 'response.create' }))
+  }
+
+  function attemptAutoHangup() {
+    if (!pendingHangupReason || sessionStatus.value !== 'connected') {
+      return
+    }
+    if (hangupTimer) {
+      clearTimeout(hangupTimer)
+    }
+    const schedule = typeof window === 'undefined' ? setTimeout : window.setTimeout
+    hangupTimer = schedule(() => {
+      hangupTimer = null
+      pendingHangupReason = null
+      disconnect()
+    }, AUTO_HANGUP_DELAY) as ReturnType<typeof setTimeout>
   }
 
   onBeforeUnmount(() => {

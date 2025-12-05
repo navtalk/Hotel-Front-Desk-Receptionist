@@ -40,8 +40,8 @@
       </div>
 
       <div class="frame-dial" :style="dialStyle" />
-
-      <p class="start-hint" :style="hintStyle">Click anywhere to begin</p>
+      
+      <div class="start-hint" :style="hintStyle">Click anywhere to begin</div>
 
       <footer class="lobby-footer" @click.stop>
         <span>© 2025 NavTalk. All rights reserved.</span>
@@ -69,7 +69,7 @@ const ORIGINAL_WIDTH = 4096
 const ORIGINAL_HEIGHT = 2300
 const FRAME_BOUNDS = { x: 1910, y: 857, width: 320, height: 598 }
 const DIAL_RATIO = { cx: 0.5, cy: 0.86, size: 0.32 }
-const HINT_BOUNDS = { x: 2064, y: 2145, width: 520, height: 60 }
+const HINT_RATIO = { width: 1, height: 0.08, gap: 0.3, minHeight: 32 }
 
 const videoRef = ref<HTMLVideoElement | null>(null)
 const sceneRef = ref<HTMLDivElement | null>(null)
@@ -83,11 +83,11 @@ const hintStyle = ref<Record<string, string>>({})
 const dialStyle = ref<Record<string, string>>({})
 
 const socialLinks = [
-  { label: 'YouTube', url: 'https://www.youtube.com/' },
-  { label: 'Discord', url: 'https://discord.com/' },
-  { label: 'X', url: 'https://x.com/' },
+  { label: 'YouTube', url: 'https://www.youtube.com/@frankfu007' },
+  { label: 'Discord', url: 'https://discord.com/invite/A9VE3zXM9p' },
+  { label: 'X', url: 'https://x.com/NavTalkAI' },
   { label: 'Facebook', url: 'https://facebook.com/' },
-  { label: 'LinkedIn', url: 'https://www.linkedin.com/' },
+  { label: 'LinkedIn', url: 'https://www.linkedin.com/in/navbot-frank/' },
 ]
 
 function computeCoverLayout(container: DOMRect) {
@@ -138,12 +138,15 @@ function updateOverlayPositions() {
     }px)`,
   }
 
+  const hintWidth = frameWidth * HINT_RATIO.width
+  const hintHeight = Math.max(frameHeight * HINT_RATIO.height, HINT_RATIO.minHeight)
   hintStyle.value = {
-    width: `${HINT_BOUNDS.width * scale}px`,
-    height: `${HINT_BOUNDS.height * scale}px`,
-    transform: `translate(${offsetX + HINT_BOUNDS.x * scale - (HINT_BOUNDS.width * scale) / 2}px, ${
-      offsetY + HINT_BOUNDS.y * scale
+    width: `${hintWidth}px`,
+    height: `${hintHeight}px`,
+    transform: `translate(${frameX + frameWidth / 2 - hintWidth / 2}px, ${
+      frameY + frameHeight + frameHeight * HINT_RATIO.gap
     }px)`,
+    fontSize: `${hintHeight * 0.35}px`,
   }
 }
 

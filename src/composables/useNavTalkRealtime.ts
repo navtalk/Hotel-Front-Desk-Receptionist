@@ -128,6 +128,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
   const userSpeaking = ref(false)
   const errorMessage = ref('')
   const manualMessage = ref('')
+  const isVideoStreaming = ref(false)
 
   const isConfigured = computed(() => Boolean(config.license))
   const isCallActive = computed(() => sessionStatus.value === 'connected')
@@ -187,7 +188,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
 
   function handleUserPlaceholder() {
     if (pendingUserMessageId) return
-    pendingUserMessageId = appendMessage('user', '倾听中…', { streaming: true })
+    pendingUserMessageId = appendMessage('user', 'Listening...', { streaming: true })
   }
 
   function resolveUserPlaceholder(transcript: string) {
@@ -261,10 +262,13 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
         .play()
         .then(() => {
           video.classList.add('is-streaming')
+          isVideoStreaming.value = true
         })
         .catch(() => {
           // Autoplay may fail silently; user will start the video via UI
         })
+      // Ensure state flips even if autoplay promise doesn't resolve quickly
+      isVideoStreaming.value = true
     }
 
     peerConnection.onicecandidate = (event) => {
@@ -438,7 +442,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
       audioProcessor.connect(audioContext.destination)
     } catch (error) {
       console.error('Microphone permission denied', error)
-      handleError('无法访问麦克风，请检查浏览器权限。')
+      handleError('Unable to access the microphone. Please check browser permissions.')
     }
   }
 
@@ -466,6 +470,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
     video.srcObject = null
     video.load()
     video.classList.remove('is-streaming')
+    isVideoStreaming.value = false
   }
 
   function teardown(nextStatus: SessionStatus, reason?: string) {
@@ -517,7 +522,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
 
   async function connect() {
     if (!isConfigured.value) {
-      errorMessage.value = '请在 .env 中配置 NavTalk License。'
+      errorMessage.value = 'Please configure the NavTalk license in your .env file.'
       return
     }
     if (sessionStatus.value === 'connecting' || sessionStatus.value === 'connected') {
@@ -595,7 +600,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
               break
             case 'error':
             case 'response.error':
-              handleError(data.error?.message ?? 'NavTalk 实时服务报错')
+              handleError(data.error?.message ?? 'NavTalk realtime service reported an error.')
               break
             default:
               break
@@ -606,19 +611,19 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
       }
 
       realtimeSocket.onerror = () => {
-        handleError('实时通道出现异常，请稍后再试。')
+        handleError('Realtime connection encountered an issue. Please try again.')
       }
 
       realtimeSocket.onclose = () => {
         if (sessionStatus.value === 'connected') {
-          teardown('idle', '会话已关闭。')
+          teardown('idle', 'Session closed.')
         } else {
           teardown('idle')
         }
       }
     } catch (error) {
       console.error('Unable to start realtime session', error)
-      handleError('无法连接到 NavTalk 服务。')
+      handleError('Unable to connect to the NavTalk service.')
     }
   }
 
@@ -626,7 +631,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
     const text = manualMessage.value.trim()
     if (!text) return
     if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
-      errorMessage.value = '当前未连接到 NavTalk，无法发送消息。'
+      errorMessage.value = 'Not connected to NavTalk, unable to send messages.'
       return
     }
     manualMessage.value = ''
@@ -768,6 +773,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
     sessionStatus,
     assistantThinking,
     userSpeaking,
+    isVideoStreaming,
     errorMessage,
     manualMessage,
     isCallActive,

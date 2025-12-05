@@ -1,6 +1,6 @@
 <template>
   <div class="lobby-shell">
-    <div class="scene" ref="sceneRef" @click="handleStageClick">
+    <div class="scene" ref="sceneRef">
       <img
         class="scene-bg"
         :src="backgroundImage"
@@ -11,8 +11,10 @@
 
       <header class="lobby-header" @click.stop>
         <div class="brand-mark">
-          <span class="brand-icon" aria-hidden="true" />
-          <span class="brand-text">NavTalk</span>
+          <a class="brand-link" href="https://navtalk.ai/" target="_blank" rel="noreferrer">
+            <span class="brand-icon" aria-hidden="true" />
+            <span class="brand-text">NavTalk</span>
+          </a>
         </div>
         <button class="github-link" type="button" @click.stop="openGithub">
           <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
@@ -29,17 +31,27 @@
         </button>
       </header>
 
-      <div class="digital-frame" :style="frameStyle">
+      <div class="digital-frame" :style="frameStyle" @click.stop="handleStageClick">
+        <div v-if="isConnecting" class="frame-loading">
+          <div class="loading-ring">
+            <span />
+          </div>
+          <p>Connecting…</p>
+        </div>
         <video ref="videoRef" autoplay playsinline class="kiosk-video" />
         <img
-          v-if="!isCallActive"
+          v-if="!isVideoStreaming"
           class="kiosk-poster"
           :src="heroPoster"
           alt="NavTalk digital receptionist"
         />
       </div>
 
-      <div class="frame-dial" :style="dialStyle" />
+      <div
+        class="frame-dial"
+        :class="{ 'is-active': isCallActive || isConnecting }"
+        :style="dialStyle"
+      />
       
       <div class="start-hint" :style="hintStyle">Click anywhere to begin</div>
 
@@ -70,13 +82,14 @@ const ORIGINAL_HEIGHT = 2300
 const FRAME_BOUNDS = { x: 1910, y: 857, width: 320, height: 598 }
 const DIAL_RATIO = { cx: 0.5, cy: 0.86, size: 0.32 }
 const HINT_RATIO = { width: 1, height: 0.08, gap: 0.3, minHeight: 32 }
+const HINT_TEXT = 'Click anywhere to begin'
 
 const videoRef = ref<HTMLVideoElement | null>(null)
 const sceneRef = ref<HTMLDivElement | null>(null)
 const heroPoster = '/images/avter.png'
 const backgroundImage = '/images/lobby-bg.png'
 
-const { isCallActive, isConnecting, toggleSession } = useNavTalkRealtime(videoRef)
+const { isCallActive, isConnecting, isVideoStreaming, toggleSession } = useNavTalkRealtime(videoRef)
 
 const frameStyle = ref<Record<string, string>>({})
 const hintStyle = ref<Record<string, string>>({})
@@ -86,7 +99,7 @@ const socialLinks = [
   { label: 'YouTube', url: 'https://www.youtube.com/@frankfu007' },
   { label: 'Discord', url: 'https://discord.com/invite/A9VE3zXM9p' },
   { label: 'X', url: 'https://x.com/NavTalkAI' },
-  { label: 'Facebook', url: 'https://facebook.com/' },
+  { label: 'Facebook', url: 'https://www.facebook.com/61583493046839/' },
   { label: 'LinkedIn', url: 'https://www.linkedin.com/in/navbot-frank/' },
 ]
 
@@ -140,13 +153,19 @@ function updateOverlayPositions() {
 
   const hintWidth = frameWidth * HINT_RATIO.width
   const hintHeight = Math.max(frameHeight * HINT_RATIO.height, HINT_RATIO.minHeight)
+  const horizontalPadding = 48
+  const availableWidth = Math.max(hintWidth - horizontalPadding, 16)
+  const fontSizeByHeight = hintHeight * 0.45
+  const fontSizeByWidth = availableWidth / (HINT_TEXT.length * 0.6)
+  const hintFontSize = Math.min(fontSizeByHeight, fontSizeByWidth)
   hintStyle.value = {
     width: `${hintWidth}px`,
     height: `${hintHeight}px`,
     transform: `translate(${frameX + frameWidth / 2 - hintWidth / 2}px, ${
       frameY + frameHeight + frameHeight * HINT_RATIO.gap
     }px)`,
-    fontSize: `${hintHeight * 0.35}px`,
+    fontSize: `${hintFontSize}px`,
+    lineHeight: `${hintHeight}px`,
   }
 }
 
@@ -174,6 +193,6 @@ function handleStageClick() {
 }
 
 function openGithub() {
-  window.open('https://github.com/navtalk-ai', '_blank')
+  window.open('https://github.com/navtalk/Hotel-Front-Desk-Receptionist', '_blank')
 }
 </script>

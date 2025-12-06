@@ -12,7 +12,7 @@
       <header class="lobby-header" @click.stop>
         <div class="brand-mark">
           <a class="brand-link" href="https://navtalk.ai/" target="_blank" rel="noreferrer">
-            <span class="brand-icon" aria-hidden="true" />
+            <span class="brand-icon" :style="brandIconStyle" aria-hidden="true" />
             <span class="brand-text">NavTalk</span>
           </a>
         </div>
@@ -86,8 +86,10 @@ const HINT_TEXT = 'Click anywhere to begin'
 
 const videoRef = ref<HTMLVideoElement | null>(null)
 const sceneRef = ref<HTMLDivElement | null>(null)
-const heroPoster = '/images/avter.png'
-const backgroundImage = '/images/lobby-bg.png'
+const assetBase = import.meta.env.BASE_URL ?? '/'
+const heroPoster = `${assetBase}images/avter.png`
+const backgroundImage = `${assetBase}images/lobby-bg.png`
+const brandIconStyle = { backgroundImage: `url(${assetBase}images/navtalk.png)` }
 
 const { isCallActive, isConnecting, isVideoStreaming, toggleSession } = useNavTalkRealtime(videoRef)
 

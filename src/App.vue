@@ -1,6 +1,12 @@
 <template>
   <div class="lobby-shell">
-    <div class="scene" ref="sceneRef">
+    <div
+      class="scene"
+      ref="sceneRef"
+      :class="{ 'is-engaged': isStageEngaged }"
+      :style="sceneStyle"
+      @click="handleStageClick"
+    >
       <img
         class="scene-bg"
         :src="backgroundImage"
@@ -31,7 +37,7 @@
         </button>
       </header>
 
-      <div class="digital-frame" :style="frameStyle" @click.stop="handleStageClick">
+      <div class="digital-frame" :style="frameStyle">
         <div v-if="isConnecting" class="frame-loading">
           <div class="loading-ring">
             <span />
@@ -74,12 +80,19 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useNavTalkRealtime } from './composables/useNavTalkRealtime'
 
 const ORIGINAL_WIDTH = 4096
 const ORIGINAL_HEIGHT = 2300
 const FRAME_BOUNDS = { x: 1910, y: 857, width: 320, height: 598 }
+const FRAME_CENTER_RATIO = {
+  x: (FRAME_BOUNDS.x + FRAME_BOUNDS.width / 2) / ORIGINAL_WIDTH,
+  y: (FRAME_BOUNDS.y + FRAME_BOUNDS.height / 2) / ORIGINAL_HEIGHT,
+}
+const ENGAGED_VERTICAL_SHIFT = -0.04
+const BG_ORIGIN_X = `${FRAME_CENTER_RATIO.x * 100}%`
+const BG_ORIGIN_Y = `${FRAME_CENTER_RATIO.y * 100}%`
 const DIAL_RATIO = { cx: 0.5, cy: 0.86, size: 0.32 }
 const HINT_RATIO = { width: 1, height: 0.08, gap: 0.3, minHeight: 32 }
 const HINT_TEXT = 'Click anywhere to begin'
@@ -92,10 +105,19 @@ const backgroundImage = `${assetBase}images/lobby-bg.png`
 const brandIconStyle = { backgroundImage: `url(${assetBase}images/navtalk.png)` }
 
 const { isCallActive, isConnecting, isVideoStreaming, toggleSession } = useNavTalkRealtime(videoRef)
+const isStageEngaged = ref(false)
+const frameScale = ref(1)
+const backgroundShift = ref(0)
 
 const frameStyle = ref<Record<string, string>>({})
 const hintStyle = ref<Record<string, string>>({})
 const dialStyle = ref<Record<string, string>>({})
+const sceneStyle = computed(() => ({
+  '--bg-scale': frameScale.value.toString(),
+  '--bg-origin-x': BG_ORIGIN_X,
+  '--bg-origin-y': BG_ORIGIN_Y,
+  '--bg-shift': `${backgroundShift.value}px`,
+}))
 
 const socialLinks = [
   { label: 'YouTube', url: 'https://www.youtube.com/@frankfu007' },
@@ -124,7 +146,7 @@ function computeCoverLayout(container: DOMRect) {
   }
 
   const scale = displayWidth / ORIGINAL_WIDTH
-  return { scale, offsetX, offsetY }
+  return { scale, offsetX, offsetY, displayWidth, displayHeight }
 }
 
 function updateOverlayPositions() {
@@ -133,10 +155,34 @@ function updateOverlayPositions() {
   const rect = scene.getBoundingClientRect()
   const { scale, offsetX, offsetY } = computeCoverLayout(rect)
 
-  const frameWidth = FRAME_BOUNDS.width * scale
-  const frameHeight = FRAME_BOUNDS.height * scale
-  const frameX = offsetX + FRAME_BOUNDS.x * scale
-  const frameY = offsetY + FRAME_BOUNDS.y * scale
+  const baseFrameWidth = FRAME_BOUNDS.width * scale
+  const baseFrameHeight = FRAME_BOUNDS.height * scale
+  const baseCenterX = offsetX + (FRAME_BOUNDS.x + FRAME_BOUNDS.width / 2) * scale
+  const baseCenterY = offsetY + (FRAME_BOUNDS.y + FRAME_BOUNDS.height / 2) * scale
+
+  let frameWidth = baseFrameWidth
+  let frameHeight = baseFrameHeight
+  let frameX = baseCenterX - frameWidth / 2
+  let frameY = baseCenterY - frameHeight / 2
+  let scaleMultiplier = 1
+
+  if (isStageEngaged.value) {
+    const targetHeight = rect.height * 0.7
+    scaleMultiplier = Math.max(targetHeight / baseFrameHeight, 1)
+    frameWidth = baseFrameWidth * scaleMultiplier
+    frameHeight = baseFrameHeight * scaleMultiplier
+    frameX = baseCenterX - frameWidth / 2
+    frameY = baseCenterY - frameHeight / 2
+    frameY += rect.height * ENGAGED_VERTICAL_SHIFT
+    const maxX = rect.width - frameWidth
+    const maxY = rect.height - frameHeight
+    frameX = Math.min(Math.max(frameX, 0), Math.max(maxX, 0))
+    frameY = Math.min(Math.max(frameY, 0), Math.max(maxY, 0))
+    backgroundShift.value = frameY + frameHeight / 2 - baseCenterY
+  } else {
+    backgroundShift.value = 0
+  }
+  frameScale.value = scaleMultiplier
 
   frameStyle.value = {
     width: `${frameWidth}px`,
@@ -173,6 +219,22 @@ function updateOverlayPositions() {
 
 let resizeObserver: ResizeObserver | null = null
 
+watch(
+  [isCallActive, isConnecting],
+  ([active, connecting]) => {
+    if (active || connecting) {
+      isStageEngaged.value = true
+    } else {
+      isStageEngaged.value = false
+    }
+  },
+  { immediate: true }
+)
+
+watch(isStageEngaged, () => {
+  updateOverlayPositions()
+})
+
 onMounted(() => {
   updateOverlayPositions()
   resizeObserver = new ResizeObserver(() => updateOverlayPositions())
@@ -189,6 +251,11 @@ onBeforeUnmount(() => {
 
 function handleStageClick() {
   if (isConnecting.value) {
+    return
+  }
+  if (!isCallActive.value) {
+    isStageEngaged.value = true
+    toggleSession()
     return
   }
   toggleSession()

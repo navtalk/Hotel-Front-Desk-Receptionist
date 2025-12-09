@@ -107,7 +107,8 @@ const brandIconStyle = { backgroundImage: `url(${assetBase}images/navtalk.png)` 
 const { isCallActive, isConnecting, isVideoStreaming, toggleSession } = useNavTalkRealtime(videoRef)
 const isStageEngaged = ref(false)
 const frameScale = ref(1)
-const backgroundShift = ref(0)
+const backgroundShiftY = ref(0)
+const backgroundShiftX = ref(0)
 
 const frameStyle = ref<Record<string, string>>({})
 const hintStyle = ref<Record<string, string>>({})
@@ -116,7 +117,8 @@ const sceneStyle = computed(() => ({
   '--bg-scale': frameScale.value.toString(),
   '--bg-origin-x': BG_ORIGIN_X,
   '--bg-origin-y': BG_ORIGIN_Y,
-  '--bg-shift': `${backgroundShift.value}px`,
+  '--bg-shift-y': `${backgroundShiftY.value}px`,
+  '--bg-shift-x': `${backgroundShiftX.value}px`,
 }))
 
 const socialLinks = [
@@ -178,9 +180,11 @@ function updateOverlayPositions() {
     const maxY = rect.height - frameHeight
     frameX = Math.min(Math.max(frameX, 0), Math.max(maxX, 0))
     frameY = Math.min(Math.max(frameY, 0), Math.max(maxY, 0))
-    backgroundShift.value = frameY + frameHeight / 2 - baseCenterY
+    backgroundShiftX.value = frameX + frameWidth / 2 - baseCenterX
+    backgroundShiftY.value = frameY + frameHeight / 2 - baseCenterY
   } else {
-    backgroundShift.value = 0
+    backgroundShiftX.value = 0
+    backgroundShiftY.value = 0
   }
   frameScale.value = scaleMultiplier
 

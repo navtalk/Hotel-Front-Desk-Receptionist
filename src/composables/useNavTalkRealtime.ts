@@ -21,27 +21,27 @@ interface NavTalkConfig {
 }
 
 const HISTORY_KEY = 'hotel-navtalk-history'
-const DEFAULT_PROMPT = `NavTalk.ai – Hotel Front Desk Assistant (System Prompt)
-Role & Context You are “Jane”, a friendly, highly professional AI Hotel Front Desk Assistant running on a NavTalk.ai kiosk in the hotel lobby. You help guests with:
-• Check-in
-• General enquiries
-• Hotel information & local recommendations
-• Check-out
+const DEFAULT_PROMPT = `NavTalk.ai 每 Hotel Front Desk Assistant (System Prompt)
+Role & Context You are ※Jane§, a friendly, highly professional AI Hotel Front Desk Assistant running on a NavTalk.ai kiosk in the hotel lobby. You help guests with:
+? Check-in
+? General enquiries
+? Hotel information & local recommendations
+? Check-out
 You always speak in a warm, concise, and polite tone, like a 5-star hotel receptionist.
 
 Core Behaviour
 1. Greeting & Identification
 Always start with a friendly greeting and a short question to know what the guest needs.
 Example:
-“Good afternoon, welcome to [Hotel Name]. I’m Jane, your virtual front desk assistant. Are you checking in, checking out, or do you have a question I can help with?”
+※Good afternoon, welcome to [Hotel Name]. I＊m Jane, your virtual front desk assistant. Are you checking in, checking out, or do you have a question I can help with?§
 
 2. Check-In Flow
 When the guest says they want to check in, guide them step by step:
-• Ask for full name, booking reference, check-in date, number of nights
-• Confirm details back to the guest
-• Ask for number of guests, email address, payment method/card for incidentals
-• Give clear next steps and narrate what is happening (“Thank you, I’m just confirming your reservation now.”)
-• Once confirmed, explain room / floor, Wi-Fi, breakfast time & location, and how to collect the room key.
+? Ask for full name, booking reference, check-in date, number of nights
+? Confirm details back to the guest
+? Ask for number of guests, email address, payment method/card for incidentals
+? Give clear next steps and narrate what is happening (※Thank you, I＊m just confirming your reservation now.§)
+? Once confirmed, explain room / floor, Wi-Fi, breakfast time & location, and how to collect the room key.
 
 3. Guest Enquiries
 You can answer questions about hotel facilities, services, local area tips, and simple troubleshooting (Wi-Fi, key cards, towels). Keep answers short and clear, offer to repeat or simplify, and hand off to a human colleague if needed.
@@ -50,16 +50,44 @@ You can answer questions about hotel facilities, services, local area tips, and 
 Ask for full name (and room number if allowed), confirm check-out date and outstanding charges, then offer email/printed receipts, luggage storage, taxi arrangements, and close warmly.
 
 5. Tone & Style
-Warm, calm, professional, short responses (1–3 sentences), use the guest’s name, clarify if unsure.
+Warm, calm, professional, short responses (1每3 sentences), use the guest＊s name, clarify if unsure.
 
 6. Safety & Privacy
-Do not say room numbers aloud if policy requires privacy, never share one guest’s details with another, and escalate suspicious requests to a human colleague.
+Do not say room numbers aloud if policy requires privacy, never share one guest＊s details with another, and escalate suspicious requests to a human colleague.
 
 7. Escalation
 For complex issues (complaints, refunds, lost valuables, emergencies) respond with empathy and hand over to staff at the desk.
 
 Example Opening
-“Hello and welcome to [Hotel Name]. I’m Jane, your virtual front desk assistant. Are you checking in, checking out, or do you have a question?”`
+※Hello and welcome to [Hotel Name]. I＊m Jane, your virtual front desk assistant. Are you checking in, checking out, or do you have a question?§`
+const AUTO_HANGUP_DELAY = 5000
+const NavTalkMessageType = Object.freeze({
+  CONNECTED_SUCCESS: 'conversation.connected.success',
+  CONNECTED_FAIL: 'conversation.connected.fail',
+  CONNECTED_CLOSE: 'conversation.connected.close',
+  INSUFFICIENT_BALANCE: 'conversation.connected.insufficient_balance',
+  WEB_RTC_OFFER: 'webrtc.signaling.offer',
+  WEB_RTC_ANSWER: 'webrtc.signaling.answer',
+  WEB_RTC_ICE_CANDIDATE: 'webrtc.signaling.iceCandidate',
+  REALTIME_SESSION_CREATED: 'realtime.session.created',
+  REALTIME_SESSION_UPDATED: 'realtime.session.updated',
+  REALTIME_SPEECH_STARTED: 'realtime.input_audio_buffer.speech_started',
+  REALTIME_SPEECH_STOPPED: 'realtime.input_audio_buffer.speech_stopped',
+  REALTIME_CONVERSATION_ITEM_COMPLETED:
+    'realtime.conversation.item.input_audio_transcription.completed',
+  REALTIME_RESPONSE_AUDIO_TRANSCRIPT_DELTA: 'realtime.response.audio_transcript.delta',
+  REALTIME_RESPONSE_AUDIO_DELTA: 'realtime.response.audio.delta',
+  REALTIME_RESPONSE_AUDIO_TRANSCRIPT_DONE: 'realtime.response.audio_transcript.done',
+  REALTIME_RESPONSE_AUDIO_DONE: 'realtime.response.audio.done',
+  REALTIME_RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE:
+    'realtime.response.function_call_arguments.done',
+  REALTIME_RESPONSE_FUNCTION_CALL_ARGUMENTS_DELTA:
+    'realtime.response.function_call_arguments.delta',
+  REALTIME_INPUT_AUDIO_BUFFER_APPEND: 'realtime.input_audio_buffer.append',
+  REALTIME_INPUT_TEXT: 'realtime.input_text',
+  REALTIME_INPUT_IMAGE: 'realtime.input_image',
+  UNKNOWN_TYPE: 'unknow',
+} as const)
 
 function loadHistory(): ChatMessage[] {
   if (typeof window === 'undefined') {
@@ -136,20 +164,15 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
 
   const assistantSegments = new Map<string, string>()
   const functionCallBuffers = new Map<string, string>()
-  const AUTO_HANGUP_DELAY = 5000
   let realtimeSocket: WebSocket | null = null
-  let signalingSocket: WebSocket | null = null
   let peerConnection: RTCPeerConnection | null = null
   let audioContext: AudioContext | null = null
   let audioProcessor: ScriptProcessorNode | null = null
   let audioStream: MediaStream | null = null
-  let proxySessionId: string | null = null
-  let targetSessionId: string | null = null
-  let hasHydratedIceServers = false
-  let iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }]
   let pendingUserMessageId: string | null = null
   let pendingHangupReason: string | null = null
   let hangupTimer: ReturnType<typeof setTimeout> | null = null
+  let iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }]
 
   watch(
     chatMessages,
@@ -192,7 +215,9 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
   }
 
   function resolveUserPlaceholder(transcript: string) {
-    if (!pendingUserMessageId) return
+    if (!pendingUserMessageId) {
+      return
+    }
     const trimmed = transcript.trim()
     if (!trimmed) {
       removeMessage(pendingUserMessageId)
@@ -229,131 +254,11 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
     assistantThinking.value = false
   }
 
-  async function ensureIceServers() {
-    if (hasHydratedIceServers) return
-    try {
-      const response = await fetch(`https://${config.baseUrl}/api/webrtc/generate-ice-servers`, {
-        method: 'POST',
-      })
-      const payload = await response.json()
-      if (payload?.code === 200 && Array.isArray(payload?.data?.iceServers)) {
-        iceServers = payload.data.iceServers
-        hasHydratedIceServers = true
-      }
-    } catch (err) {
-      console.warn('Unable to refresh ICE servers, falling back to default.', err)
-      hasHydratedIceServers = true
-    }
-  }
-
-  async function handleOffer(message: any) {
-    await ensureIceServers()
-    if (peerConnection) {
-      peerConnection.close()
-    }
-    peerConnection = new RTCPeerConnection({ iceServers })
-
-    peerConnection.ontrack = (event) => {
-      const video = videoElement.value
-      if (!video) return
-      video.srcObject = event.streams[0]
-      video.muted = false
-      video
-        .play()
-        .then(() => {
-          video.classList.add('is-streaming')
-          isVideoStreaming.value = true
-        })
-        .catch(() => {
-          // Autoplay may fail silently; user will start the video via UI
-        })
-      // Ensure state flips even if autoplay promise doesn't resolve quickly
-      isVideoStreaming.value = true
-    }
-
-    peerConnection.onicecandidate = (event) => {
-      if (event.candidate && signalingSocket && targetSessionId) {
-        signalingSocket.send(
-          JSON.stringify({
-            type: 'iceCandidate',
-            targetSessionId: targetSessionId,
-            candidate: event.candidate,
-          })
-        )
-      }
-    }
-
-    peerConnection.onconnectionstatechange = () => {
-      if (!peerConnection) return
-      if (peerConnection.connectionState === 'failed') {
-        peerConnection.restartIce()
-      }
-    }
-
-    const remoteDesc = new RTCSessionDescription(message.sdp)
-    await peerConnection.setRemoteDescription(remoteDesc)
-    const answer = await peerConnection.createAnswer()
-    await peerConnection.setLocalDescription(answer)
-    if (signalingSocket) {
-      signalingSocket.send(
-        JSON.stringify({
-          type: 'answer',
-          targetSessionId: message.targetSessionId,
-          sdp: peerConnection.localDescription,
-        })
-      )
-    }
-  }
-
-  function handleIceCandidate(message: any) {
-    if (!peerConnection) return
-    const candidate = new RTCIceCandidate(message.candidate)
-    peerConnection
-      .addIceCandidate(candidate)
-      .catch((err) => console.error('ICE candidate error', err))
-  }
-
-  function setupSignalingSocket() {
-    if (!proxySessionId || signalingSocket) {
+  async function sendSessionUpdate() {
+    if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
       return
     }
-
-    targetSessionId = `target-${proxySessionId}`
-    const url = new URL(`wss://${config.baseUrl}/api/webrtc`)
-    url.searchParams.set('userId', proxySessionId)
-    signalingSocket = new WebSocket(url)
-
-    signalingSocket.onopen = () => {
-      if (!signalingSocket || !targetSessionId) return
-      signalingSocket.send(JSON.stringify({ type: 'create', targetSessionId }))
-    }
-
-    signalingSocket.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data)
-        if (payload.type === 'offer') {
-          handleOffer(payload)
-        } else if (payload.type === 'iceCandidate') {
-          handleIceCandidate(payload)
-        }
-      } catch (error) {
-        console.error('Failed to parse signaling message', error)
-      }
-    }
-
-    signalingSocket.onerror = (event) => {
-      console.error('Signaling socket error', event)
-    }
-
-    signalingSocket.onclose = () => {
-      signalingSocket = null
-      targetSessionId = null
-    }
-  }
-
-  async function sendSessionUpdate() {
-    if (!realtimeSocket) return
-    const payload = {
+    const sessionPayload = {
       type: 'session.update',
       session: {
         instructions: config.prompt,
@@ -392,7 +297,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
         ],
       },
     }
-    realtimeSocket.send(JSON.stringify(payload))
+    realtimeSocket.send(JSON.stringify(sessionPayload))
 
     const recentUserMessages = chatMessages.value.filter((msg) => msg.role === 'user').slice(-3)
     recentUserMessages.forEach((msg) => {
@@ -414,257 +319,129 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
     })
   }
 
-  async function startRecording() {
-    if (audioStream || typeof navigator === 'undefined') {
-      return
-    }
-
-    try {
-      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
-      audioContext = new AudioCtx({ sampleRate: 24000 })
-      const source = audioContext.createMediaStreamSource(audioStream)
-      audioProcessor = audioContext.createScriptProcessor(4096, 1, 1)
-      audioProcessor.onaudioprocess = (event) => {
-        if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
-          return
-        }
-        const inputBuffer = event.inputBuffer.getChannelData(0)
-        const pcmBuffer = floatTo16BitPCM(inputBuffer)
-        const base64Audio = base64Encode(new Uint8Array(pcmBuffer))
-        const chunkSize = 4096
-        for (let i = 0; i < base64Audio.length; i += chunkSize) {
-          const chunk = base64Audio.slice(i, i + chunkSize)
-          realtimeSocket.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: chunk }))
-        }
-      }
-      source.connect(audioProcessor)
-      audioProcessor.connect(audioContext.destination)
-    } catch (error) {
-      console.error('Microphone permission denied', error)
-      handleError('Unable to access the microphone. Please check browser permissions.')
-    }
-  }
-
-  function stopRecording() {
-    if (audioProcessor) {
-      audioProcessor.disconnect()
-      audioProcessor.onaudioprocess = null
-      audioProcessor = null
-    }
-    if (audioContext) {
-      audioContext.close().catch(() => null)
-      audioContext = null
-    }
-    if (audioStream) {
-      audioStream.getTracks().forEach((track) => track.stop())
-      audioStream = null
-    }
-  }
-
-  function clearVideoElement() {
-    const video = videoElement.value
-    if (!video) return
-    video.pause()
-    video.removeAttribute('src')
-    video.srcObject = null
-    video.load()
-    video.classList.remove('is-streaming')
-    isVideoStreaming.value = false
-  }
-
-  function teardown(nextStatus: SessionStatus, reason?: string) {
-    stopRecording()
-    if (realtimeSocket) {
-      realtimeSocket.onclose = null
-      realtimeSocket.onerror = null
-      realtimeSocket.onmessage = null
-      realtimeSocket.close()
-      realtimeSocket = null
-    }
-    if (signalingSocket) {
-      signalingSocket.onclose = null
-      signalingSocket.close()
-      signalingSocket = null
-    }
-    if (peerConnection) {
-      peerConnection.ontrack = null
-      peerConnection.close()
-      peerConnection = null
-    }
-    clearVideoElement()
-    proxySessionId = null
-    targetSessionId = null
-    hasHydratedIceServers = false
-    assistantSegments.clear()
-    functionCallBuffers.clear()
-    pendingUserMessageId = null
-    pendingHangupReason = null
-    if (hangupTimer) {
-      clearTimeout(hangupTimer)
-      hangupTimer = null
-    }
-    userSpeaking.value = false
-    assistantThinking.value = false
-    if (reason) {
-      errorMessage.value = reason
-    }
-    sessionStatus.value = nextStatus
-  }
-
-  function handleError(message: string) {
-    teardown('error', message)
-  }
-
-  function disconnect() {
-    teardown('idle')
-  }
-
-  async function connect() {
-    if (!isConfigured.value) {
-      errorMessage.value = 'Please configure the NavTalk license in your .env file.'
-      return
-    }
-    if (sessionStatus.value === 'connecting' || sessionStatus.value === 'connected') {
-      return
-    }
-    errorMessage.value = ''
-    sessionStatus.value = 'connecting'
-    assistantSegments.clear()
-    pendingUserMessageId = null
-
-    const url = new URL(`wss://${config.baseUrl}/api/realtime-api`)
-    url.searchParams.set('license', config.license)
-    url.searchParams.set('characterName', config.characterName)
-    url.searchParams.set('model', config.model)
-
-    try {
-      realtimeSocket = new WebSocket(url)
-      realtimeSocket.binaryType = 'arraybuffer'
-
-      realtimeSocket.onopen = () => {
-        console.info('Realtime socket connected')
-      }
-
-      realtimeSocket.onmessage = (event) => {
-        if (typeof event.data !== 'string') {
-          return
-        }
-        try {
-          const data = JSON.parse(event.data)
-          switch (data.type) {
-            case 'session.created':
-              sendSessionUpdate()
-              break
-            case 'session.updated':
-              sessionStatus.value = 'connected'
-              startRecording()
-              break
-            case 'session.session_id': {
-              const sessionId = data.sessionId ?? data.session_id
-              if (sessionId && sessionId !== proxySessionId) {
-                proxySessionId = sessionId
-                setupSignalingSocket()
-              }
-              break
-            }
-            case 'input_audio_buffer.speech_started':
-              userSpeaking.value = true
-              handleUserPlaceholder()
-              break
-            case 'input_audio_buffer.speech_stopped':
-              userSpeaking.value = false
-              break
-            case 'conversation.item.input_audio_transcription.completed':
-              resolveUserPlaceholder(data.transcript ?? '')
-              break
-            case 'response.audio_transcript.delta':
-              handleAssistantDelta(data.response_id, data.delta ?? '')
-              break
-            case 'response.audio_transcript.done':
-              finalizeAssistantResponse(data.response_id)
-              break
-            case 'response.completed':
-              assistantThinking.value = false
-              attemptAutoHangup()
-              break
-            case 'response.audio.done':
-              assistantThinking.value = false
-              attemptAutoHangup()
-              break
-            case 'response.function_call_arguments.delta':
-              handleFunctionCallDelta(data)
-              break
-            case 'response.function_call_arguments.done':
-              handleFunctionCallDone(data)
-              break
-            case 'error':
-            case 'response.error':
-              handleError(data.error?.message ?? 'NavTalk realtime service reported an error.')
-              break
-            default:
-              break
-          }
-        } catch (err) {
-          console.error('Failed to parse realtime payload', err)
-        }
-      }
-
-      realtimeSocket.onerror = () => {
-        handleError('Realtime connection encountered an issue. Please try again.')
-      }
-
-      realtimeSocket.onclose = () => {
-        if (sessionStatus.value === 'connected') {
-          teardown('idle', 'Session closed.')
-        } else {
-          teardown('idle')
-        }
-      }
-    } catch (error) {
-      console.error('Unable to start realtime session', error)
-      handleError('Unable to connect to the NavTalk service.')
-    }
-  }
-
-  async function sendTextMessage() {
-    const text = manualMessage.value.trim()
-    if (!text) return
+  function sendOfferMessage(sdp: RTCSessionDescriptionInit) {
     if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
-      errorMessage.value = 'Not connected to NavTalk, unable to send messages.'
       return
     }
-    manualMessage.value = ''
-    appendMessage('user', text)
     realtimeSocket.send(
       JSON.stringify({
-        type: 'conversation.item.create',
-        item: {
-          type: 'message',
-          role: 'user',
-          content: [
-            {
-              type: 'input_text',
-              text,
-            },
-          ],
-        },
+        type: NavTalkMessageType.WEB_RTC_OFFER,
+        data: { sdp },
       })
     )
-    realtimeSocket.send(JSON.stringify({ type: 'response.create' }))
   }
 
-  function toggleSession() {
-    if (isCallActive.value || isConnecting.value) {
-      disconnect()
-    } else {
-      connect()
+  function sendAnswerMessage(sdp: RTCSessionDescriptionInit) {
+    if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
+      return
+    }
+    realtimeSocket.send(
+      JSON.stringify({
+        type: NavTalkMessageType.WEB_RTC_ANSWER,
+        data: { sdp },
+      })
+    )
+  }
+
+  function sendIceMessage(candidate: RTCIceCandidateInit) {
+    if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
+      return
+    }
+    realtimeSocket.send(
+      JSON.stringify({
+        type: NavTalkMessageType.WEB_RTC_ICE_CANDIDATE,
+        data: { candidate },
+      })
+    )
+  }
+
+  async function handleOffer(message: any) {
+    if (!message?.sdp) {
+      return
+    }
+    const offerDescription = new RTCSessionDescription(message.sdp)
+    if (peerConnection) {
+      peerConnection.ontrack = null
+      peerConnection.onicecandidate = null
+      peerConnection.onconnectionstatechange = null
+      peerConnection.onnegotiationneeded = null
+      peerConnection.close()
+    }
+    peerConnection = new RTCPeerConnection({ iceServers })
+
+    peerConnection.ontrack = (event) => {
+      const video = videoElement.value
+      if (!video) {
+        return
+      }
+      video.srcObject = event.streams[0]
+      video.muted = false
+      video
+        .play()
+        .then(() => {
+          video.classList.add('is-streaming')
+          isVideoStreaming.value = true
+        })
+        .catch(() => {
+          // autoplay might be blocked
+        })
+      isVideoStreaming.value = true
+    }
+
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        sendIceMessage(event.candidate)
+      }
+    }
+
+    peerConnection.onconnectionstatechange = () => {
+      if (!peerConnection) {
+        return
+      }
+      if (peerConnection.connectionState === 'failed') {
+        peerConnection.restartIce()
+      }
+    }
+
+    peerConnection.onnegotiationneeded = async () => {
+      if (!peerConnection) {
+        return
+      }
+      try {
+        const renegotiationOffer = await peerConnection.createOffer()
+        await peerConnection.setLocalDescription(renegotiationOffer)
+        sendOfferMessage(renegotiationOffer)
+      } catch (error) {
+        console.error('Negotiation error', error)
+      }
+    }
+
+    try {
+      await peerConnection.setRemoteDescription(offerDescription)
+      const answer = await peerConnection.createAnswer()
+      await peerConnection.setLocalDescription(answer)
+      sendAnswerMessage(answer)
+    } catch (error) {
+      console.error('Error handling offer:', error)
     }
   }
 
-  function clearHistory() {
-    chatMessages.value = []
-    saveHistory([])
+  function handleAnswer(message: any) {
+    if (!peerConnection || !message?.sdp) {
+      return
+    }
+    const answerDescription = new RTCSessionDescription(message.sdp)
+    peerConnection
+      .setRemoteDescription(answerDescription)
+      .catch((err) => console.error('Failed to handle Answer:', err))
+  }
+
+  function handleIceCandidate(message: any) {
+    if (!peerConnection || !message?.candidate) {
+      return
+    }
+    const candidate = new RTCIceCandidate(message.candidate)
+    peerConnection.addIceCandidate(candidate).catch((err) => console.error('Error adding ICE candidate:', err))
   }
 
   function handleFunctionCallDelta(event: any) {
@@ -676,9 +453,8 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
   }
 
   function handleFunctionCallDone(event: any) {
-    const name = typeof event?.name === 'string' ? event.name : ''
     const callId = event?.call_id ? String(event.call_id) : undefined
-
+    const name = typeof event?.name === 'string' ? event.name : ''
     let rawArguments: string | undefined
     if (typeof event?.arguments === 'string' && event.arguments.trim()) {
       rawArguments = event.arguments
@@ -762,6 +538,307 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
       pendingHangupReason = null
       disconnect()
     }, AUTO_HANGUP_DELAY) as ReturnType<typeof setTimeout>
+  }
+
+  function sendAudioMessage(chunk: string) {
+    if (!chunk || !realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
+      return
+    }
+    realtimeSocket.send(
+      JSON.stringify({
+        type: NavTalkMessageType.REALTIME_INPUT_AUDIO_BUFFER_APPEND,
+        data: { audio: chunk },
+      })
+    )
+  }
+
+  function startRecording() {
+    if (audioStream || typeof navigator === 'undefined') {
+      return
+    }
+
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((stream) => {
+        audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 })
+        audioStream = stream
+        const source = audioContext.createMediaStreamSource(stream)
+        audioProcessor = audioContext.createScriptProcessor(4096, 1, 1)
+
+        audioProcessor.onaudioprocess = (event) => {
+          if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
+            return
+          }
+          const inputBuffer = event.inputBuffer.getChannelData(0)
+          const pcmBuffer = floatTo16BitPCM(inputBuffer)
+          const base64Audio = base64Encode(new Uint8Array(pcmBuffer))
+          const chunkSize = 4096
+          for (let i = 0; i < base64Audio.length; i += chunkSize) {
+            const chunk = base64Audio.slice(i, i + chunkSize)
+            sendAudioMessage(chunk)
+          }
+        }
+
+        source.connect(audioProcessor)
+        audioProcessor.connect(audioContext.destination)
+      })
+      .catch((error) => {
+        console.error('Microphone permission denied', error)
+        handleError('Unable to access the microphone. Please check browser permissions.')
+      })
+  }
+
+  function stopRecording() {
+    if (audioProcessor) {
+      audioProcessor.disconnect()
+      audioProcessor.onaudioprocess = null
+      audioProcessor = null
+    }
+    if (audioContext) {
+      audioContext.close().catch(() => null)
+      audioContext = null
+    }
+    if (audioStream) {
+      audioStream.getTracks().forEach((track) => track.stop())
+      audioStream = null
+    }
+  }
+
+  function clearVideoElement() {
+    const video = videoElement.value
+    if (!video) {
+      return
+    }
+    video.pause()
+    video.removeAttribute('src')
+    video.srcObject = null
+    video.load()
+    video.classList.remove('is-streaming')
+    isVideoStreaming.value = false
+  }
+
+  async function handleReceivedMessage(raw: unknown) {
+    if (typeof raw !== 'string') {
+      return
+    }
+    let payload: any
+    try {
+      payload = JSON.parse(raw)
+    } catch (error) {
+      console.error('Failed to parse realtime payload', error)
+      return
+    }
+    const type = payload?.type ?? NavTalkMessageType.UNKNOWN_TYPE
+    const data = payload?.data ?? {}
+    switch (type) {
+      case NavTalkMessageType.CONNECTED_SUCCESS:
+        if (Array.isArray(data?.iceServers)) {
+          iceServers = data.iceServers
+        }
+        break
+      case NavTalkMessageType.CONNECTED_FAIL:
+        handleError(data?.message ?? 'Realtime connection failed.')
+        break
+      case NavTalkMessageType.CONNECTED_CLOSE:
+        teardown('idle', data?.message ?? 'Session closed.')
+        break
+      case NavTalkMessageType.INSUFFICIENT_BALANCE:
+        handleError('You need more points to complete this action.')
+        break
+      case NavTalkMessageType.REALTIME_SESSION_CREATED:
+        await sendSessionUpdate()
+        break
+      case NavTalkMessageType.REALTIME_SESSION_UPDATED:
+        sessionStatus.value = 'connected'
+        startRecording()
+        break
+      case NavTalkMessageType.WEB_RTC_OFFER:
+        await handleOffer(data)
+        break
+      case NavTalkMessageType.WEB_RTC_ANSWER:
+        handleAnswer(data)
+        break
+      case NavTalkMessageType.WEB_RTC_ICE_CANDIDATE:
+        handleIceCandidate(data)
+        break
+      case NavTalkMessageType.REALTIME_SPEECH_STARTED:
+        userSpeaking.value = true
+        handleUserPlaceholder()
+        break
+      case NavTalkMessageType.REALTIME_SPEECH_STOPPED:
+        userSpeaking.value = false
+        break
+      case NavTalkMessageType.REALTIME_CONVERSATION_ITEM_COMPLETED: {
+        const transcript =
+          typeof data?.content === 'string' ? data.content : payload?.transcript ?? ''
+        resolveUserPlaceholder(transcript)
+        break
+      }
+      case NavTalkMessageType.REALTIME_RESPONSE_AUDIO_TRANSCRIPT_DELTA: {
+        const responseId = data?.id ?? createId('assistant')
+        const transcript = typeof data?.content === 'string' ? data.content : ''
+        handleAssistantDelta(responseId, transcript)
+        break
+      }
+      case NavTalkMessageType.REALTIME_RESPONSE_AUDIO_TRANSCRIPT_DONE:
+        finalizeAssistantResponse(data?.id ?? '')
+        break
+      case NavTalkMessageType.REALTIME_RESPONSE_AUDIO_DONE:
+        assistantThinking.value = false
+        attemptAutoHangup()
+        break
+      case NavTalkMessageType.REALTIME_RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE:
+        handleFunctionCallDone(data)
+        break
+      case NavTalkMessageType.REALTIME_RESPONSE_FUNCTION_CALL_ARGUMENTS_DELTA:
+        handleFunctionCallDelta(data)
+        break
+      case NavTalkMessageType.REALTIME_RESPONSE_AUDIO_DELTA:
+        break
+      default:
+        if (type !== NavTalkMessageType.REALTIME_RESPONSE_AUDIO_DELTA) {
+          console.warn('Unhandled event type:', type)
+        }
+        break
+    }
+  }
+
+  function handleError(message: string) {
+    teardown('error', message)
+  }
+
+  function teardown(nextStatus: SessionStatus, reason?: string) {
+    stopRecording()
+    if (realtimeSocket) {
+      realtimeSocket.onclose = null
+      realtimeSocket.onerror = null
+      realtimeSocket.onmessage = null
+      if (realtimeSocket.readyState !== WebSocket.CLOSED) {
+        realtimeSocket.close()
+      }
+      realtimeSocket = null
+    }
+    if (peerConnection) {
+      peerConnection.ontrack = null
+      peerConnection.onicecandidate = null
+      peerConnection.onconnectionstatechange = null
+      peerConnection.onnegotiationneeded = null
+      peerConnection.close()
+      peerConnection = null
+    }
+    clearVideoElement()
+    assistantSegments.clear()
+    functionCallBuffers.clear()
+    pendingUserMessageId = null
+    pendingHangupReason = null
+    if (hangupTimer) {
+      clearTimeout(hangupTimer)
+      hangupTimer = null
+    }
+    userSpeaking.value = false
+    assistantThinking.value = false
+    if (reason) {
+      errorMessage.value = reason
+    } else if (nextStatus !== 'error') {
+      errorMessage.value = ''
+    }
+    sessionStatus.value = nextStatus
+  }
+
+  function connect() {
+    if (!isConfigured.value) {
+      errorMessage.value = 'Please configure the NavTalk license in your .env file.'
+      return
+    }
+    if (sessionStatus.value === 'connecting' || sessionStatus.value === 'connected') {
+      return
+    }
+    errorMessage.value = ''
+    sessionStatus.value = 'connecting'
+    assistantSegments.clear()
+    pendingUserMessageId = null
+    pendingHangupReason = null
+    if (hangupTimer) {
+      clearTimeout(hangupTimer)
+      hangupTimer = null
+    }
+    iceServers = [{ urls: 'stun:stun.l.google.com:19302' }]
+
+    try {
+      const url = new URL(`wss://${config.baseUrl}/wss/v2/realtime-chat`)
+      url.searchParams.set('license', config.license)
+      url.searchParams.set('name', config.characterName)
+      url.searchParams.set('model', config.model)
+      realtimeSocket = new WebSocket(url)
+      realtimeSocket.binaryType = 'arraybuffer'
+
+      realtimeSocket.onopen = () => {
+        console.info('Realtime socket connected')
+      }
+
+      realtimeSocket.onmessage = (event) => {
+        void handleReceivedMessage(event.data)
+      }
+
+      realtimeSocket.onerror = () => {
+        handleError('Realtime connection encountered an issue. Please try again.')
+      }
+
+      realtimeSocket.onclose = (event) => {
+        if (sessionStatus.value === 'connected') {
+          teardown('idle', event.reason || 'Session closed.')
+        } else {
+          teardown('idle')
+        }
+      }
+    } catch (error) {
+      console.error('Unable to start realtime session', error)
+      handleError('Unable to connect to the NavTalk service.')
+    }
+  }
+
+  function disconnect() {
+    teardown('idle')
+  }
+
+  function toggleSession() {
+    if (isCallActive.value || isConnecting.value) {
+      disconnect()
+    } else {
+      connect()
+    }
+  }
+
+  async function sendTextMessage() {
+    const text = manualMessage.value.trim()
+    if (!text) return
+    if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
+      errorMessage.value = 'Not connected to NavTalk, unable to send messages.'
+      return
+    }
+    manualMessage.value = ''
+    appendMessage('user', text)
+    realtimeSocket.send(
+      JSON.stringify({
+        type: 'conversation.item.create',
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text,
+            },
+          ],
+        },
+      })
+    )
+    realtimeSocket.send(JSON.stringify({ type: 'response.create' }))
+  }
+
+  function clearHistory() {
+    chatMessages.value = []
+    saveHistory([])
   }
 
   onBeforeUnmount(() => {

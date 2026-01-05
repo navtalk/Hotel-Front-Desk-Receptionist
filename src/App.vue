@@ -62,7 +62,7 @@
       <div class="start-hint" :style="hintStyle">Click anywhere to begin</div>
 
       <footer class="lobby-footer" @click.stop>
-        <span>© 2025 NavTalk. All rights reserved.</span>
+        <span>© {{ currentYear }} NavTalk. All rights reserved.</span>
         <nav>
           <a
             v-for="link in socialLinks"
@@ -103,6 +103,7 @@ const assetBase = import.meta.env.BASE_URL ?? '/'
 const heroPoster = `${assetBase}images/avter.png`
 const backgroundImage = `${assetBase}images/lobby-bg.png`
 const brandIconStyle = { backgroundImage: `url(${assetBase}images/navtalk.png)` }
+const currentYear = new Date().getFullYear()
 
 const { isCallActive, isConnecting, isVideoStreaming, toggleSession } = useNavTalkRealtime(videoRef)
 const isStageEngaged = ref(false)

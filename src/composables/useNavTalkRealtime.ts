@@ -61,6 +61,8 @@ For complex issues (complaints, refunds, lost valuables, emergencies) respond wi
 Example Opening
 ※Hello and welcome to [Hotel Name]. I＊m Jane, your virtual front desk assistant. Are you checking in, checking out, or do you have a question?§`
 const AUTO_HANGUP_DELAY = 5000
+const AUTO_HANGUP_INSTRUCTIONS =
+  'When the guest clearly signals they want to end the conversation (goodbye, thanks, leaving, etc.), finish with a polite closing remark and then call the `end_conversation` tool so the kiosk can hang up automatically.'
 const NavTalkMessageType = Object.freeze({
   CONNECTED_SUCCESS: 'conversation.connected.success',
   CONNECTED_FAIL: 'conversation.connected.fail',
@@ -258,10 +260,11 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
     if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
       return
     }
+    const instructions = [config.prompt, AUTO_HANGUP_INSTRUCTIONS].filter(Boolean).join('\n\n')
     const sessionPayload = {
       type: 'session.update',
       session: {
-        instructions: config.prompt,
+        instructions,
         turn_detection: {
           type: 'server_vad',
           threshold: 0.5,
@@ -454,7 +457,12 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
 
   function handleFunctionCallDone(event: any) {
     const callId = event?.call_id ? String(event.call_id) : undefined
-    const name = typeof event?.name === 'string' ? event.name : ''
+    const name =
+      typeof event?.name === 'string'
+        ? event.name
+        : typeof event?.function_name === 'string'
+        ? event.function_name
+        : ''
     let rawArguments: string | undefined
     if (typeof event?.arguments === 'string' && event.arguments.trim()) {
       rawArguments = event.arguments

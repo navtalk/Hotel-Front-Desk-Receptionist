@@ -21,7 +21,8 @@ interface NavTalkConfig {
 }
 
 const HISTORY_KEY = 'hotel-navtalk-history'
-const DEFAULT_PROMPT = `NavTalk.ai 每 Hotel Front Desk Assistant (System Prompt)
+const AUTO_HANGUP_INSTRUCTIONS ='When the guest clearly signals they are finished (thank you, goodbye, leaving, etc.), close warmly, mention any follow-up needed, and then call the `end_conversation` tool so the kiosk can hang up automatically.'
+const DEFAULT_PROMPT = `NavTalk.ai – Hotel Front Desk Assistant (System Prompt)
 Role & Context You are “Jane”, a friendly, highly professional AI Hotel Front Desk Assistant running on a NavTalk.ai kiosk in the hotel lobby. You help guests with:
 • Check-in
 • General enquiries
@@ -61,8 +62,6 @@ For complex issues (complaints, refunds, lost valuables, emergencies) respond wi
 Example Opening
 “Hello and welcome to [Hotel Name]. I’m Jane, your virtual front desk assistant. Are you checking in, checking out, or do you have a question?”`
 const AUTO_HANGUP_DELAY = 5000
-const AUTO_HANGUP_INSTRUCTIONS =
-  'When the guest clearly signals they want to end the conversation (goodbye, thanks, leaving, etc.), finish with a polite closing remark and then call the `end_conversation` tool so the kiosk can hang up automatically.'
 const NavTalkMessageType = Object.freeze({
   CONNECTED_SUCCESS: 'conversation.connected.success',
   CONNECTED_FAIL: 'conversation.connected.fail',

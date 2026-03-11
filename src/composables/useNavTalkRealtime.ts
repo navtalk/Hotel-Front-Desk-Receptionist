@@ -87,6 +87,7 @@ const NavTalkMessageType = Object.freeze({
   REALTIME_INPUT_AUDIO_BUFFER_APPEND: 'realtime.input_audio_buffer.append',
   REALTIME_INPUT_TEXT: 'realtime.input_text',
   REALTIME_INPUT_IMAGE: 'realtime.input_image',
+  REALTIME_INPUT_CONFIG: 'realtime.input_config',
   UNKNOWN_TYPE: 'unknow',
 } as const)
 
@@ -268,51 +269,31 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
     assistantThinking.value = false
   }
 
+  function sendSessionConfig() {
+    if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
+      console.warn('WebSocket not ready for config send')
+      return
+    }
+
+    const instructions = [config.prompt, AUTO_HANGUP_INSTRUCTIONS].filter(Boolean).join('\n\n')
+    const sessionConfig = {
+      voice: config.voice,
+      prompt: instructions,
+    }
+
+    console.log('Sending session config:', sessionConfig)
+    realtimeSocket.send(
+      JSON.stringify({
+        type: 'realtime.input_config',
+        data: { content: JSON.stringify(sessionConfig) },
+      })
+    )
+  }
+
   async function sendSessionUpdate() {
     if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
       return
     }
-    const instructions = [config.prompt, AUTO_HANGUP_INSTRUCTIONS].filter(Boolean).join('\n\n')
-    const sessionPayload = {
-      type: 'session.update',
-      session: {
-        instructions,
-        turn_detection: {
-          type: 'server_vad',
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 600,
-        },
-        voice: config.voice,
-        temperature: 0.9,
-        max_response_output_tokens: 4096,
-        modalities: ['text', 'audio'],
-        input_audio_format: 'pcm16',
-        output_audio_format: 'pcm16',
-        input_audio_transcription: {
-          model: 'whisper-1',
-        },
-        tools: [
-          {
-            type: 'function',
-            name: 'end_conversation',
-            description:
-              'Call this when the guest says goodbye, wants to leave, or asks to end the conversation so the kiosk can hang up automatically.',
-            parameters: {
-              type: 'object',
-              properties: {
-                reason: {
-                  type: 'string',
-                  description: 'Brief explanation of why the call should end.',
-                },
-              },
-              required: ['reason'],
-            },
-          },
-        ],
-      },
-    }
-    realtimeSocket.send(JSON.stringify(sessionPayload))
 
     const recentUserMessages = chatMessages.value.filter((msg) => msg.role === 'user').slice(-3)
     recentUserMessages.forEach((msg) => {
@@ -797,6 +778,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
 
       realtimeSocket.onopen = () => {
         console.info('Realtime socket connected')
+        sendSessionConfig()
       }
 
       realtimeSocket.onmessage = (event) => {

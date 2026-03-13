@@ -13,7 +13,6 @@ export interface ChatMessage {
 
 interface NavTalkConfig {
   license: string
-  model: string
   characterName: string
   voice: string
   prompt: string
@@ -145,7 +144,6 @@ function base64Encode(uint8Array: Uint8Array) {
 export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
   const config = reactive<NavTalkConfig>({
     license: import.meta.env.VITE_NAVTALK_LICENSE ?? '',
-    model: import.meta.env.VITE_NAVTALK_MODEL ?? 'gpt-realtime',
     characterName: import.meta.env.VITE_NAVTALK_CHARACTER ?? 'navtalk.Brain',
     voice: import.meta.env.VITE_NAVTALK_VOICE ?? 'cedar',
     prompt: import.meta.env.VITE_NAVTALK_PROMPT ?? DEFAULT_PROMPT,
@@ -772,7 +770,6 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
       const url = new URL(`wss://${config.baseUrl}/wss/v2/realtime-chat`)
       url.searchParams.set('license', config.license)
       url.searchParams.set('name', config.characterName)
-      url.searchParams.set('model', config.model)
       realtimeSocket = new WebSocket(url)
       realtimeSocket.binaryType = 'arraybuffer'
 

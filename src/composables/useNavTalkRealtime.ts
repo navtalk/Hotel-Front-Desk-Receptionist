@@ -13,7 +13,8 @@ export interface ChatMessage {
 
 interface NavTalkConfig {
   license: string
-  characterName: string
+  characterName: string  // Optional if avatarId is provided
+  avatarId?: string      // Optional: Direct avatar ID for precise lookup
   voice: string
   prompt: string
   baseUrl: string
@@ -63,6 +64,7 @@ Example Opening
 const AUTO_HANGUP_DELAY = 5000
 const NavTalkMessageType = Object.freeze({
   CONNECTED_SUCCESS: 'conversation.connected.success',
+  CONNECTED_WARNING: 'conversation.connected.warning',
   CONNECTED_FAIL: 'conversation.connected.fail',
   CONNECTED_CLOSE: 'conversation.connected.close',
   INSUFFICIENT_BALANCE: 'conversation.connected.insufficient_balance',
@@ -145,6 +147,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
   const config = reactive<NavTalkConfig>({
     license: import.meta.env.VITE_NAVTALK_LICENSE ?? '',
     characterName: import.meta.env.VITE_NAVTALK_CHARACTER ?? 'navtalk.Brain',
+    avatarId: import.meta.env.VITE_NAVTALK_AVATAR_ID ?? '',
     voice: import.meta.env.VITE_NAVTALK_VOICE ?? 'cedar',
     prompt: import.meta.env.VITE_NAVTALK_PROMPT ?? DEFAULT_PROMPT,
     baseUrl: import.meta.env.VITE_NAVTALK_BASE_URL ?? 'transfer.navtalk.ai',
@@ -635,6 +638,11 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
           iceServers = data.iceServers
         }
         break
+      case NavTalkMessageType.CONNECTED_WARNING: {
+        const warningMsg = data?.message || 'Warning from server'
+        console.warn('[NavTalk Connection Warning]', warningMsg)
+        break
+      }
       case NavTalkMessageType.CONNECTED_FAIL:
         handleError(data?.message ?? 'Realtime connection failed.')
         break
@@ -769,7 +777,12 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
     try {
       const url = new URL(`wss://${config.baseUrl}/wss/v2/realtime-chat`)
       url.searchParams.set('license', config.license)
-      url.searchParams.set('name', config.characterName)
+      // Use avatarId for precise lookup, fallback to name if not provided
+      if (config.avatarId) {
+        url.searchParams.set('avatarId', config.avatarId)
+      } else {
+        url.searchParams.set('name', config.characterName)
+      }
       realtimeSocket = new WebSocket(url)
       realtimeSocket.binaryType = 'arraybuffer'
 
